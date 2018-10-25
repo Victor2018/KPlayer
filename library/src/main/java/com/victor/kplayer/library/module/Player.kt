@@ -29,18 +29,20 @@ class Player: TextureView.SurfaceTextureListener,
         MediaPlayer.OnInfoListener, MediaPlayer.OnSeekCompleteListener,
         SurfaceHolder.Callback, MediaPlayer.OnVideoSizeChangedListener {
 
-    val PLAYER_PREPARING = 0xf100
-    val PLAYER_PREPARED = 0xf101
-    val PLAYER_BUFFERING_START = 0xf102
-    val PLAYER_BUFFERING_END = 0xf103
-    val PLAYER_ERROR = 0xf104
-    val PLAYER_SEEK_END = 0xf105
-    val PLAYER_PROGRESS_INFO = 0xf106
-    val PLAYER_COMPLETE = 0xf107
-    val PLAYER_CAN_NOT_SEEK = 0xf108
-    val HIDE_PLAY_CTRL_VIEW = 0xf109
-    val PLAYER_PLAYING = 0xf110
-    val PLAYER_PAUSE = 0xf111
+    companion object {
+        val PLAYER_PREPARING = 0xf100
+        val PLAYER_PREPARED = 0xf101
+        val PLAYER_BUFFERING_START = 0xf102
+        val PLAYER_BUFFERING_END = 0xf103
+        val PLAYER_ERROR = 0xf104
+        val PLAYER_SEEK_END = 0xf105
+        val PLAYER_PROGRESS_INFO = 0xf106
+        val PLAYER_COMPLETE = 0xf107
+        val PLAYER_CAN_NOT_SEEK = 0xf108
+        val HIDE_PLAY_CTRL_VIEW = 0xf109
+        val PLAYER_PLAYING = 0xf110
+        val PLAYER_PAUSE = 0xf111
+    }
 
     private val TAG = "Player"
     private var videoWidth: Int = 0
@@ -265,9 +267,7 @@ class Player: TextureView.SurfaceTextureListener,
     internal var mRunable: Runnable = object : Runnable {
 
         override fun run() {
-            val msg = Message()
-            msg.obj = showSubTitle()
-            msg.what = PLAYER_PROGRESS_INFO
+            val msg = mNotifyHandler?.obtainMessage(PLAYER_PROGRESS_INFO,showSubTitle())
             mNotifyHandler?.sendMessage(msg)
             mNotifyHandler?.postDelayed(this, 500)
 

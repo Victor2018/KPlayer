@@ -7,6 +7,7 @@ import com.victor.kplayer.library.interfaces.OnHttpListener
 import com.victor.kplayer.library.module.YoutubeParserHelper
 import com.victor.kplayer.library.module.jsevaluator.JsEvaluator
 import com.victor.kplayer.library.module.jsevaluator.interfaces.JsCallback
+import org.victor.khttp.library.util.HttpUtil
 import java.net.SocketTimeoutException
 
 /*

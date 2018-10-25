@@ -17,6 +17,8 @@ class Constant {
         const val VIMEO_CONFIG_URL = "https://player.vimeo.com/video/%s/config"
 
         const val YOUTUBE_URL = "http://www.youtube.com/get_video_info?video_id=%s&asv=3&el=detailpage&hl=en_US"
+        const val SUB_TITLE_LIST = "http://video.google.com/timedtext?type=list&v=%s"
+        const val SUB_TITLE = "http://video.google.com/timedtext?type=track&v=%s&id=%d&lang=%s"
         const val WATCHV_HTTPS = "https://www.youtube.com/watch?v=%s"
         const val DECIPHER_URL = "https://s.ytimg.com/yts/jsbin/%s"
         const val PARAMETER_SEPARATOR = "&"

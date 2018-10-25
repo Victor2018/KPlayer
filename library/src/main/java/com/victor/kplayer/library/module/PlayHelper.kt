@@ -8,16 +8,19 @@ import android.util.Log
 import android.view.SurfaceView
 import android.view.TextureView
 import com.victor.kplayer.library.data.FacebookReq
+import com.victor.kplayer.library.data.SubTitleInfo
 import com.victor.kplayer.library.data.VimeoReq
 import com.victor.kplayer.library.data.YoutubeReq
 import com.victor.kplayer.library.interfaces.OnExtractListener
 import com.victor.kplayer.library.interfaces.OnYoutubeListener
+import com.victor.kplayer.library.interfaces.OnYoutubeSubTitleListener
 import com.victor.kplayer.library.presenter.FacebookPresenterImpl
 import com.victor.kplayer.library.presenter.VimeoPresenterImpl
 import com.victor.kplayer.library.util.Constant
 import com.victor.kplayer.library.util.PlayUtil
 import com.victor.kplayer.library.view.FacebookView
 import com.victor.kplayer.library.view.VimeoView
+import java.util.HashMap
 
 /*
  * -----------------------------------------------------------------
@@ -29,12 +32,17 @@ import com.victor.kplayer.library.view.VimeoView
  * Description: 
  * -----------------------------------------------------------------
  */
-class PlayHelper: OnYoutubeListener, VimeoView, FacebookView {
+class PlayHelper: OnYoutubeListener,OnYoutubeSubTitleListener, VimeoView, FacebookView {
+    override fun OnYoutubeSubTitle(datas: HashMap<Int, SubTitleInfo>?, msg: String) {
+        mPlayer?.setSubTitle(datas!!)
+    }
+
     private var youtubeReq: YoutubeReq? = null
     private var vimeoReq: VimeoReq? = null
     private var facebookReq: FacebookReq? = null
     private var playUrl: String? = null
     private var mOnExtractListener: OnExtractListener? = null
+
     override fun OnFacebook(data: FacebookReq?, msg: String) {
         facebookReq = data
         mOnExtractListener?.OnFacebook(facebookReq)
@@ -92,7 +100,7 @@ class PlayHelper: OnYoutubeListener, VimeoView, FacebookView {
         initialize()
     }
     fun initialize () {
-        youtubeParserHelper = YoutubeParserHelper(mContext!!,this)
+        youtubeParserHelper = YoutubeParserHelper(mContext!!,this,this)
         vimeoPresenter = VimeoPresenterImpl(this)
         facebookPresenter = FacebookPresenterImpl(this)
         if (mTextureView != null) {
@@ -152,6 +160,7 @@ class PlayHelper: OnYoutubeListener, VimeoView, FacebookView {
     }
 
     fun retData () {
+        youtubeReq = null
         vimeoReq = null
         facebookReq = null
     }

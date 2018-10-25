@@ -34,7 +34,7 @@ dependencies {
     implementation project(':library')
 
     //kotlin 网络请求库
-    implementation 'com.github.Victor2018:KHttpLib:v1.4'
+    implementation 'com.github.Victor2018:KHttpLib:v1.5'
     //fastjson库
     implementation 'com.alibaba:fastjson:1.1.56.android'
 }

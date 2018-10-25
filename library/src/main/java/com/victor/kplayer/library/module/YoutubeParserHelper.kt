@@ -1,24 +1,24 @@
 package com.victor.kplayer.library.module
 
 import android.text.TextUtils
-import com.victor.kplayer.library.util.YoutubeParser
-import com.victor.kplayer.library.data.FmtStreamMap
 import android.R.attr.thumb
 import android.R.attr.rating
 import android.R.attr.author
 import android.content.Context
 import android.os.Handler
-import com.victor.kplayer.library.data.YoutubeReq
 import android.os.HandlerThread
 import android.os.Message
 import android.util.Log
 import android.util.SparseArray
-import com.victor.kplayer.library.data.DecipherViaParm
-import com.victor.kplayer.library.data.YtFile
+import com.victor.clips.presenter.SubTitlePresenterImpl
+import com.victor.kplayer.library.data.*
 import com.victor.kplayer.library.interfaces.OnHttpListener
 import com.victor.kplayer.library.interfaces.OnYoutubeListener
-import com.victor.kplayer.library.util.PlayUtil
-import com.victor.kplayer.library.util.YoutubeAction
+import com.victor.kplayer.library.interfaces.OnYoutubeSubTitleListener
+import com.victor.kplayer.library.presenter.SubTitleListPresenterImpl
+import com.victor.kplayer.library.util.*
+import com.victor.kplayer.library.view.SubTitleListView
+import com.victor.kplayer.library.view.SubTitleView
 import java.lang.ref.WeakReference
 
 
@@ -32,7 +32,7 @@ import java.lang.ref.WeakReference
  * Description: 
  * -----------------------------------------------------------------
  */
-class YoutubeParserHelper: OnHttpListener {
+class YoutubeParserHelper: OnHttpListener,SubTitleListView,SubTitleView {
 
     companion object {
         const val REQUEST_YOUTUBE_INFO = 0x8001
@@ -47,6 +47,7 @@ class YoutubeParserHelper: OnHttpListener {
     private var identifier: String? = null
     private var youtubeReq: YoutubeReq? = null
     private var mOnYoutubeListener: OnYoutubeListener? = null
+    private var mOnYoutubeSubTitleListener: OnYoutubeSubTitleListener? = null
 
     var decipherViaParm = DecipherViaParm()
 
@@ -54,13 +55,19 @@ class YoutubeParserHelper: OnHttpListener {
     private var mRequestHandler: Handler? = null
     private var mRequestHandlerThread: HandlerThread? = null
 
+    private var subTitleListPresenter: SubTitleListPresenterImpl? = null
+    private var subTitlePresenter: SubTitlePresenterImpl? = null
+
     //由于primary constructor不能包含任何代码，因此使用 init 代码块对其初始化，同时可以在初始化代码块中使用构造函数的参数
     init {
+        subTitleListPresenter = SubTitleListPresenterImpl(this)
         startRequestTask()
     }
-    constructor(context: Context,listener: OnYoutubeListener) {
+    constructor(context: Context,listener: OnYoutubeListener,subTitleListener: OnYoutubeSubTitleListener) {
         refContext = WeakReference(context)
         mOnYoutubeListener = listener
+        mOnYoutubeSubTitleListener = subTitleListener
+        subTitlePresenter = SubTitlePresenterImpl(this)
     }
 
     private fun startRequestTask() {
@@ -77,6 +84,7 @@ class YoutubeParserHelper: OnHttpListener {
                         youtubeUrl = parmMap!![REQUEST_YOUTUBE_INFO] as String
                         identifier = PlayUtil.getVideoId(youtubeUrl!!)
                         YoutubeAction.requestYoutubeInfo(identifier!!, this@YoutubeParserHelper)
+                        subTitleListPresenter?.sendRequest(String.format(Constant.SUB_TITLE_LIST, identifier), null, null)
                     }
                     REQUEST_YOUTUBE_HTML -> {
                         parmMap = msg.obj as HashMap<Int, Any>?
@@ -111,8 +119,12 @@ class YoutubeParserHelper: OnHttpListener {
 
     @Synchronized
     fun sendRequestWithParms(Msg: Int, requestData: Any?) {
+        if (requestData == null) {
+            Log.e(TAG,"sendRequestWithParms()-requestData == null")
+            return
+        }
         val requestMap = HashMap<Int, Any>()
-        requestMap.put(Msg, requestData!!)
+        requestMap?.put(Msg, requestData)
         val msg = mRequestHandler!!.obtainMessage(Msg, requestMap)
         mRequestHandler!!.sendMessage(msg)
     }
@@ -124,44 +136,45 @@ class YoutubeParserHelper: OnHttpListener {
 
     @Synchronized
     fun onDestroy() {
-        if (mRequestHandlerThread != null) {
-            mRequestHandlerThread!!.quit()
-            mRequestHandlerThread = null
-        }
+        mRequestHandlerThread?.quit()
+        mRequestHandlerThread = null
+
+        subTitleListPresenter?.detachView()
+        subTitleListPresenter = null
     }
 
     override fun onComplete(videoType: Int, data: Any?, msg: String) {
         when (videoType) {
             REQUEST_YOUTUBE_INFO -> {
-                youtubeReq = YoutubeParser.parseYoutubeData(data.toString())
-                for (item in youtubeReq?.sm!!) {
-                    Log.e(TAG, item.itag + "-" + item.quality + "-->" + item.url)
-                }
+                youtubeReq = YoutubeParser.parseYoutubeData(data?.toString()!!)
 
-                val sigEnc = YoutubeParser.parseYoutubeSigEnc(data.toString())
+                val sigEnc = YoutubeParser.parseYoutubeSigEnc(data?.toString()!!)
                 Log.e(TAG, "onComplete-sigEnc = " + sigEnc)
                 if (sigEnc) {
+                    Log.e(TAG, "onComplete-REQUEST_YOUTUBE_INFO-youtubeUrl = " + youtubeUrl)
                     sendRequestWithParms(REQUEST_YOUTUBE_HTML, youtubeUrl)
                 } else {
                     mOnYoutubeListener?.OnYoutube(youtubeReq,"parse youtube data error!")
                 }
             }
             REQUEST_YOUTUBE_HTML -> {
-                val youtubeHtmlData = YoutubeParser.parseYoutubeHtml(data.toString())
+                val youtubeHtmlData = YoutubeParser.parseYoutubeHtml(data?.toString()!!)
                 ytFiles = youtubeHtmlData!!.ytFiles
                 decipherViaParm.encSignatures = youtubeHtmlData!!.encSignatures
+                Log.e(TAG, "onComplete-REQUEST_YOUTUBE_HTML-youtubeHtmlData!!.decipherJsFileName = " + youtubeHtmlData!!.decipherJsFileName)
                 sendRequestWithParms(REQUEST_YOUTUBE_DECIPHER, youtubeHtmlData!!.decipherJsFileName)
             }
             REQUEST_YOUTUBE_DECIPHER -> {
-                val decipherData = YoutubeParser.parseYoutubeDecipher(data.toString())
+                val decipherData = YoutubeParser.parseYoutubeDecipher(data?.toString()!!)
                 decipherViaParm.decipherFunctionName = decipherData!!.decipherFunctionName
                 decipherViaParm.decipherFunctions = decipherData!!.decipherFunctions
                 Log.e(TAG, "onComplete-decipherData.decipherFunctionName = " + decipherData!!.decipherFunctionName)
                 Log.e(TAG, "onComplete-decipherData.decipherFunctions = " + decipherData!!.decipherFunctions)
+                Log.e(TAG, "onComplete-REQUEST_YOUTUBE_DECIPHER-decipherViaParm = " + decipherViaParm)
                 sendRequestWithParms(REQUEST_YOUTUBE_DECIPHER_VIA, decipherViaParm)
             }
             REQUEST_YOUTUBE_DECIPHER_VIA -> {
-                val signature = data.toString()
+                val signature = data?.toString()!!
                 Log.e(TAG, "onComplete-jsResult = $signature")
                 if (!TextUtils.isEmpty(signature)) {
                     val sigs = signature.split("\n".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
@@ -194,6 +207,19 @@ class YoutubeParserHelper: OnHttpListener {
                 }
             }
         }
+    }
+
+    override fun OnSubTitleList(data: Any?, msg: String) {
+        Log.e(TAG,"OnSubTitleList()-data = " + data)
+        if (data == null) {
+            return
+        }
+        var subTitleListInfo: SubTitleListInfo? = SubTitleParser.parseSubTitleList(data.toString())
+        subTitlePresenter?.sendRequest(String.format(Constant.SUB_TITLE, identifier, subTitleListInfo?.id, subTitleListInfo?.lang_code), null, null)
+    }
+
+    override fun OnSubTitle(data: Any?, msg: String) {
+        mOnYoutubeSubTitleListener?.OnYoutubeSubTitle(SubTitleParser.parseSubTitle(data.toString()),msg)
     }
 
 }
