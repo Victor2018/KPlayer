@@ -19,7 +19,6 @@
         android:gravity="center"
         android:layout_gravity="bottom"
         android:textColor="@android:color/holo_blue_bright"
-        android:textSize="18sp"
-        android:text="55633333333"/>
+        android:textSize="18sp"/>
 
 </FrameLayout>
