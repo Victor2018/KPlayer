@@ -61,13 +61,13 @@ class YoutubeParserHelper: OnHttpListener,SubTitleListView,SubTitleView {
     //由于primary constructor不能包含任何代码，因此使用 init 代码块对其初始化，同时可以在初始化代码块中使用构造函数的参数
     init {
         subTitleListPresenter = SubTitleListPresenterImpl(this)
+        subTitlePresenter = SubTitlePresenterImpl(this)
         startRequestTask()
     }
     constructor(context: Context,listener: OnYoutubeListener,subTitleListener: OnYoutubeSubTitleListener) {
         refContext = WeakReference(context)
         mOnYoutubeListener = listener
         mOnYoutubeSubTitleListener = subTitleListener
-        subTitlePresenter = SubTitlePresenterImpl(this)
     }
 
     private fun startRequestTask() {
@@ -141,6 +141,9 @@ class YoutubeParserHelper: OnHttpListener,SubTitleListView,SubTitleView {
 
         subTitleListPresenter?.detachView()
         subTitleListPresenter = null
+
+        subTitlePresenter?.detachView()
+        subTitlePresenter = null
     }
 
     override fun onComplete(videoType: Int, data: Any?, msg: String) {
