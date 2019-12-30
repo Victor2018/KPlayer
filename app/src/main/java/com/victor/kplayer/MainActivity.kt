@@ -3,6 +3,7 @@ package com.victor.kplayer
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Message
+import android.view.View
 import android.widget.Toast
 import com.alibaba.fastjson.JSON
 import com.victor.kplayer.library.data.FacebookReq
@@ -15,6 +16,7 @@ import kotlinx.android.synthetic.main.activity_main.*
 import org.victor.khttp.library.util.MainHandler
 
 class MainActivity : AppCompatActivity(),OnExtractListener,MainHandler.OnMainHandlerImpl {
+
     override fun handleMainMessage(msg: Message?) {
         when (msg?.what) {
             Player.PLAYER_PROGRESS_INFO -> {
@@ -48,11 +50,13 @@ class MainActivity : AppCompatActivity(),OnExtractListener,MainHandler.OnMainHan
         playHelper = PlayHelper(this,mSvPlay,MainHandler.get())
 //        playHelper?.play("SMcXGeltEQQ",this)//youtube video
 //        playHelper?.play("ozv4q2ov3Mk",this)//youtube video
-        playHelper?.play("4rR8jc6EPQM",this)//youtube video
+//        playHelper?.play("4rR8jc6EPQM",this)//youtube video
 //        playHelper?.play("yk2CUjbyyQY",this)//youtube live
 //        playHelper?.play("https://vimeo.com/channels/staffpicks/262705319",this)//vimeo
 //        playHelper?.play("https://www.facebook.com/1541202502800731/videos/1995585847362392/",this)//facebook
 //        playHelper?.play("http://ivi.bupt.edu.cn/hls/cctv3.m3u8",null)//m3u8
+        playHelper?.play("http://tanzi27niu.cdsb.mobi/wps/wp-content/uploads/2017/05/2017-05-17_17-33-30.mp4",null)//m3u8
+
     }
 
     override fun onResume() {

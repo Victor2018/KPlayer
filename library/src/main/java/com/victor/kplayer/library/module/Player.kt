@@ -1,6 +1,7 @@
 package com.victor.kplayer.library.module
 
 import android.graphics.SurfaceTexture
+import android.media.AudioManager
 import android.media.MediaPlayer
 import android.os.Handler
 import android.os.Message
@@ -20,7 +21,7 @@ import java.util.*
  * File: Player.java
  * Author: Victor
  * Date: 2018/10/24 13:33
- * Description: 
+ * Description:
  * -----------------------------------------------------------------
  */
 class Player: TextureView.SurfaceTextureListener,
@@ -84,6 +85,17 @@ class Player: TextureView.SurfaceTextureListener,
         createMediaPlayer()
     }
 
+    override fun onSurfaceTextureAvailable(surfaceTexture: SurfaceTexture?, width: Int, height: Int) {
+        if (mSurfaceTexture == null) {
+            mSurfaceTexture = surfaceTexture
+            createMediaPlayer()
+            setDisplay()
+            openVideo()
+        } else {
+            mTextureView?.setSurfaceTexture(mSurfaceTexture)
+        }
+    }
+
     override fun onSurfaceTextureSizeChanged(surfaceTexture: SurfaceTexture?, width: Int, height: Int) {
     }
 
@@ -94,26 +106,95 @@ class Player: TextureView.SurfaceTextureListener,
         return mSurfaceTexture == null
     }
 
-    override fun onSurfaceTextureAvailable(surfaceTexture: SurfaceTexture?, width: Int, height: Int) {
-        if (mSurfaceTexture == null) {
-            mSurfaceTexture = surfaceTexture
-            createMediaPlayer()
-            openVideo()
-        } else {
-            mTextureView?.setSurfaceTexture(mSurfaceTexture)
+    override fun surfaceCreated(holder: SurfaceHolder?) {
+        mSurfaceHolder = holder
+    }
+
+    override fun surfaceDestroyed(holder: SurfaceHolder?) {
+    }
+
+    override fun surfaceChanged(holder: SurfaceHolder?, format: Int, width: Int, height: Int) {
+        mSurfaceHolder = holder
+        setDisplay()
+        openVideo()
+    }
+
+    fun createMediaPlayer() {
+        Log.e(TAG, "createMediaPlayer()......")
+        try {
+            if (mMediaPlayer != null) {
+                mMediaPlayer?.setOnPreparedListener(null)
+                mMediaPlayer?.setOnErrorListener(null)
+                mMediaPlayer?.setOnBufferingUpdateListener(null)
+                mMediaPlayer?.setOnInfoListener(null)
+                mMediaPlayer?.setOnSeekCompleteListener(null)
+                mMediaPlayer?.setOnCompletionListener(null)
+                mMediaPlayer?.reset()
+                mMediaPlayer?.release()
+                mMediaPlayer = null
+            }
+
+            mMediaPlayer = MediaPlayer()
+            mMediaPlayer?.setOnPreparedListener(this)
+            mMediaPlayer?.setOnErrorListener(this)
+            mMediaPlayer?.setOnBufferingUpdateListener(this)
+            mMediaPlayer?.setOnInfoListener(this)
+            mMediaPlayer?.setOnSeekCompleteListener(this)
+            mMediaPlayer?.setOnCompletionListener(this)
+
+        } catch (e: Exception) {
+            // TODO Auto-generated catch block
+            e.printStackTrace()
+        }
+
+    }
+
+    fun setDisplay() {
+        if (mSurfaceTexture != null) {
+            mSurface = Surface(mSurfaceTexture)
+            mMediaPlayer?.setSurface(mSurface)
+            mTextureView?.keepScreenOn = true
+        }
+
+        if (mSurfaceHolder != null) {
+            mMediaPlayer?.setDisplay(mSurfaceHolder) // 设置画面输出
+            mMediaPlayer?.setScreenOnWhilePlaying(true) // 保持屏幕高亮
         }
     }
 
-    override fun onBufferingUpdate(mp: MediaPlayer?, percent: Int) {
-        mBufferPercentage = percent
+
+    fun open(surfaceView: SurfaceView) {
+        Log.e(TAG, "open()......")
+        mSurfaceView = surfaceView
+        mSurfaceHolder = mSurfaceView?.holder
+        mSurfaceHolder?.addCallback(this)
+        mSurfaceHolder?.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS) // 视频缓冲完就开始播放，不使用SurfaceView的缓冲区
     }
 
-    override fun onCompletion(mp: MediaPlayer?) {
-        if (mIsLive) {
-            replay()
+    fun openVideo() {
+        Log.e(TAG, "openVideo()......")
+        mNotifyHandler?.removeMessages(PLAYER_BUFFERING_END)
+        if (TextUtils.isEmpty(mPlayUrl)) {
+            Log.d(TAG, "mPlayUrl or is empty")
             return
         }
-        mNotifyHandler?.sendEmptyMessage(PLAYER_COMPLETE)
+        if (mSurface == null && mSurfaceHolder == null) {
+            Log.d(TAG, "mSurface or mSurfaceHolder is null")
+            return
+        }
+
+        synchronized(this) {
+            try {
+                mNotifyHandler?.sendEmptyMessage(PLAYER_PREPARING)
+                mMediaPlayer?.reset()
+                mMediaPlayer?.setDataSource(mPlayUrl)
+                mMediaPlayer?.prepareAsync()
+                startNotify()
+            } catch (e: Exception) {
+                // TODO Auto-generated catch block
+                e.printStackTrace()
+            }
+        }
     }
 
     override fun onPrepared(mp: MediaPlayer?) {
@@ -130,12 +211,6 @@ class Player: TextureView.SurfaceTextureListener,
             mNotifyHandler?.sendEmptyMessage(PLAYER_PREPARED)
             mp?.start()
         }
-    }
-
-    override fun onError(mp: MediaPlayer?, p1: Int, p2: Int): Boolean {
-        Log.e(TAG, "onError()......")
-        replay()
-        return false
     }
 
     override fun onInfo(mp: MediaPlayer?, what: Int, extra: Int): Boolean {
@@ -171,87 +246,28 @@ class Player: TextureView.SurfaceTextureListener,
         mNotifyHandler?.sendEmptyMessage(PLAYER_SEEK_END)
     }
 
-    override fun surfaceChanged(holder: SurfaceHolder?, format: Int, width: Int, height: Int) {
-        mSurfaceHolder = holder
-        mMediaPlayer?.setDisplay(mSurfaceHolder)
+    override fun onBufferingUpdate(mp: MediaPlayer?, percent: Int) {
+        mBufferPercentage = percent
     }
 
-    override fun surfaceDestroyed(holder: SurfaceHolder?) {
+    override fun onCompletion(mp: MediaPlayer?) {
+        if (mIsLive) {
+            replay()
+            return
+        }
+        mNotifyHandler?.sendEmptyMessage(PLAYER_COMPLETE)
     }
 
-    override fun surfaceCreated(holder: SurfaceHolder?) {
-        mSurfaceHolder = holder
+
+    override fun onError(mp: MediaPlayer?, p1: Int, p2: Int): Boolean {
+        Log.e(TAG, "onError()......")
+        replay()
+        return false
     }
 
     override fun onVideoSizeChanged(mp: MediaPlayer?, width: Int, height: Int) {
     }
 
-    private fun createMediaPlayer() {
-        Log.e(TAG, "createMediaPlayer()......")
-        try {
-            if (mMediaPlayer != null) {
-                mMediaPlayer?.release()
-                mMediaPlayer = null
-            }
-
-            mMediaPlayer = MediaPlayer()
-
-            mMediaPlayer?.reset()
-            mMediaPlayer?.setOnPreparedListener(this)
-            mMediaPlayer?.setOnErrorListener(this)
-            mMediaPlayer?.setOnBufferingUpdateListener(this)
-            mMediaPlayer?.setOnInfoListener(this)
-            mMediaPlayer?.setOnSeekCompleteListener(this)
-            mMediaPlayer?.setOnCompletionListener(this)
-
-            mSurface = Surface(mSurfaceTexture)
-            mMediaPlayer?.setSurface(mSurface)
-
-            mMediaPlayer?.setDisplay(mSurfaceHolder) // 设置画面输出
-
-            mMediaPlayer?.setScreenOnWhilePlaying(true) // 保持屏幕高亮
-
-        } catch (e: Exception) {
-            // TODO Auto-generated catch block
-            e.printStackTrace()
-        }
-
-    }
-
-    private fun openVideo() {
-        Log.e(TAG, "openVideo()......")
-        mNotifyHandler?.removeMessages(PLAYER_BUFFERING_END)
-        if (TextUtils.isEmpty(mPlayUrl)) {
-            Log.d(TAG, "mPlayUrl or is empty")
-            return
-        }
-        if (mSurface == null && mSurfaceHolder == null) {
-            Log.d(TAG, "mSurface or mSurfaceHolder is null")
-            return
-        }
-
-        synchronized(this) {
-            try {
-                mNotifyHandler?.sendEmptyMessage(PLAYER_PREPARING)
-                mMediaPlayer?.reset()
-                mMediaPlayer?.setDataSource(mPlayUrl)
-                mMediaPlayer?.prepareAsync()
-                startNotify()
-            } catch (e: Exception) {
-                // TODO Auto-generated catch block
-                e.printStackTrace()
-            }
-
-        }
-    }
-
-    fun open(surfaceView: SurfaceView) {
-        Log.e(TAG, "open()......")
-        mSurfaceView = surfaceView
-        mSurfaceHolder = mSurfaceView?.getHolder()
-        mSurfaceHolder?.addCallback(this)
-        mSurfaceHolder?.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS) // 视频缓冲完就开始播放，不使用SurfaceView的缓冲区
-    }
 
     fun close() {
         Log.d(TAG, "close()......")
